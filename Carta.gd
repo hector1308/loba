@@ -1,46 +1,71 @@
 extends Control
 
-signal carta_seleccionada(referencia_carta)
+signal carta_seleccionada(objeto)
 
-var valor: int = 1
-var palo: String = ""
-var seleccionada: bool = false
+var valor = 0
+var palo = ""
+var seleccionada = false
 
-# Esta es la función clave que cambia el texto
-func configurar(nuevo_valor: int, nuevo_palo: String):
-	valor = nuevo_valor
-	palo = nuevo_palo
+# Diccionarios para carpetas y nombres de palos
+var carpetas_palos = {
+	"Corazon": "hearts",
+	"Trebol": "clubs",
+	"Pica": "spades",
+	"Diamante": "diamonds",
+	"Joker": "joker"
+}
+
+var nombres_palos_archivo = {
+	"Corazon": "hearts",
+	"Trebol": "clubs",
+	"Pica": "spades",
+	"Diamante": "diamonds",
+	"Joker": "joker"
+}
+
+func configurar(v, p):
+	valor = v
+	palo = p
+	actualizar_visual()
+
+func actualizar_visual():
+	if not is_inside_tree(): await ready
 	
-	var texto_v = str(valor)
-	if valor == 1: texto_v = "A"
-	elif valor == 11: texto_v = "J"
-	elif valor == 12: texto_v = "Q"
-	elif valor == 13: texto_v = "K"
-	elif valor == 0: texto_v = "JK"
-	
-	# Cambiamos los textos. 
-	# IMPORTANTE: Asegúrate de que los nodos se llamen igual en la escena.
-	$NumeroLabel.text = texto_v
-	$PaloLabel.text = nuevo_palo
-	
-	# OPCIONAL: Poner color rojo a Corazones y Diamantes
-	if palo == "Corazon" or palo == "Diamante":
-		$NumeroLabel.modulate = Color.RED
-		$PaloLabel.modulate = Color.RED
+	var textura_display = get_node_or_null("Imagen")
+	if textura_display == null: return
+
+	var carpeta = carpetas_palos.get(palo, "")
+	var nombre_palo_file = nombres_palos_archivo.get(palo, "")
+	var sufijo = "" if seleccionada else "_white"
+	var ruta = ""
+
+	# --- LÓGICA DE TRADUCCIÓN DE VALORES ---
+	if palo == "Joker":
+		# Ruta: res://cards/joker/joker.png o joker_white.png
+		ruta = "res://cards/joker/joker" + sufijo + ".png"
 	else:
-		$NumeroLabel.modulate = Color.BLACK
-		$PaloLabel.modulate = Color.BLACK
+		var valor_string = str(valor)
+		if valor == 1: valor_string = "ace"
+		elif valor == 11: valor_string = "jack"
+		elif valor == 12: valor_string = "queen"
+		elif valor == 13: valor_string = "king"
+		
+		# Ruta: res://cards/palo/ace_palo_white.png
+		ruta = "res://cards/" + carpeta + "/" + valor_string + "_" + nombre_palo_file + sufijo + ".png"
+
+	# Carga de la imagen
+	if FileAccess.file_exists(ruta):
+		textura_display.texture = load(ruta)
+		textura_display.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	else:
+		print("--- CARTA NO ENCONTRADA ---")
+		print("Ruta buscada: ", ruta)
 
 func alternar_seleccion():
 	seleccionada = !seleccionada
-	if seleccionada:
-		position.y -= 30 
-		modulate = Color(0.8, 1, 0.8) 
-	else:
-		position.y += 30 
-		modulate = Color.WHITE
+	actualizar_visual()
 
-func _on_gui_input(event):
+func _gui_input(event):
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			carta_seleccionada.emit(self)

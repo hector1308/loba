@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="juegoloba"
-run/main_scene="uid://i4kn6aguwj74"
-config/features=PackedStringArray("4.5", "GL Compatibility")
+run/main_scene="res://Mesa.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [rendering]
