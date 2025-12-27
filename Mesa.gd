@@ -12,6 +12,7 @@ var ya_robo = false
 var cartas_seleccionadas = []
 var turno_jugador = true
 var indice_rotacion_rival = 0 
+var juego_terminado = false
 
 func _ready():
 	randomize()
@@ -24,8 +25,6 @@ func _ready():
 	preparar_pozo_inicial()
 	
 	configurar_interfaz_visual()
-	
-	# Solo desbloqueamos los inputs, NO movemos nodos de lugar
 	call_deferred("desbloquear_botones")
 	
 	if not %BotonMazo.pressed.is_connected(_on_boton_mazo_pressed):
@@ -35,33 +34,24 @@ func _ready():
 	
 	actualizar_estado_botones()
 
-# --- SEGURIDAD DE INPUTS (Simplificada y Segura) ---
+# --- SEGURIDAD DE INPUTS ---
 func desbloquear_botones():
-	# Forzamos a los botones a ser la capa más alta visualmente
 	var botones = [%BotonMazo, %BotonAccion]
 	for b in botones:
 		if b:
 			b.mouse_filter = Control.MOUSE_FILTER_STOP
 			b.disabled = false
-			b.z_index = 100 # Flotar sobre todo
-			# Asegurar que el padre inmediato no los bloquee
+			b.z_index = 100 
 			if b.get_parent() is Control:
 				b.get_parent().mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func configuring_layout_order(principal):
-	# Esta función asegura que el orden vertical sea correcto: Rival -> Centro -> Espacio -> Jugador
 	var orden_deseado = []
-	
 	if has_node("LadoRival"): orden_deseado.append(get_node("LadoRival"))
 	if has_node("%ZonaCentral"): orden_deseado.append(%ZonaCentral)
-	
-	# Si existe el espacio intermedio, lo ponemos
 	if has_node("LadoJugador"): orden_deseado.append(get_node("LadoJugador"))
-	
-	# La mano siempre al final
 	orden_deseado.append(%ManoJugador)
 	
-	# Aplicamos el orden
 	for i in range(orden_deseado.size()):
 		var nodo = orden_deseado[i]
 		if nodo.get_parent() == principal:
@@ -69,23 +59,18 @@ func configuring_layout_order(principal):
 
 func configurar_interfaz_visual():
 	var principal = %ManoJugador.get_parent()
-	
 	if principal is BoxContainer:
 		principal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		principal.add_theme_constant_override("separation", 10)
 		principal.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		
-		# IMPORTANTE: Reordenar correctamente para que el centro no caiga
 		configuring_layout_order(principal)
 
-	# 1. LADO RIVAL (Pan de Arriba - SE EXPANDE)
 	if has_node("LadoRival"):
 		var lr = get_node("LadoRival")
 		lr.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		lr.size_flags_stretch_ratio = 1.0
 		lr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		
-		# Configuración de zonas internas (Anclajes)
 		if zona_rival_izq:
 			zona_rival_izq.layout_mode = 1 
 			zona_rival_izq.anchor_left = 0.0; zona_rival_izq.anchor_right = 0.33
@@ -107,24 +92,19 @@ func configurar_interfaz_visual():
 			zona_rival_der.offset_left = 0; zona_rival_der.offset_right = 0
 			if zona_rival_der is BoxContainer: zona_rival_der.alignment = BoxContainer.ALIGNMENT_CENTER
 
-	# 2. ZONA CENTRAL (Jamón del medio - NO SE EXPANDE)
 	%ZonaCentral.custom_minimum_size.y = 140 
 	%ZonaCentral.alignment = BoxContainer.ALIGNMENT_CENTER
-	# CLAVE: Shrink Center evita que ocupe espacio vertical extra y caiga
-	%ZonaCentral.size_flags_vertical = Control.SIZE_SHRINK_CENTER 
+	%ZonaCentral.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	%ZonaCentral.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# 3. LADO JUGADOR (Pan de Abajo - SE EXPANDE)
-	# Este nodo es vital. Si no existe, lo creamos para que empuje el centro hacia arriba.
 	var lj
 	if has_node("LadoJugador"):
 		lj = get_node("LadoJugador")
 	else:
-		# Si no existe, creamos un espaciador invisible seguro
 		lj = Control.new()
 		lj.name = "LadoJugador"
 		principal.add_child(lj)
-		principal.move_child(lj, principal.get_child_count() - 2) # Justo antes de la mano
+		principal.move_child(lj, principal.get_child_count() - 2)
 	
 	lj.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lj.size_flags_stretch_ratio = 1.0 
@@ -133,14 +113,79 @@ func configurar_interfaz_visual():
 		lj.alignment = BoxContainer.ALIGNMENT_CENTER
 		lj.add_theme_constant_override("separation", 50)
 
-	# 4. TU MANO
 	%ManoJugador.custom_minimum_size.y = 130
 	%ManoJugador.size_flags_vertical = Control.SIZE_SHRINK_END
 	%ManoJugador.alignment = BoxContainer.ALIGNMENT_CENTER
 	
-	# 5. BOTONES (Tamaño)
 	var botones = [%BotonMazo, %BotonAccion]
 	for b in botones: b.custom_minimum_size = Vector2(170, 50)
+
+# --- SISTEMA DE VICTORIA Y PANTALLA FINAL (CORREGIDO) ---
+
+func verificar_ganador():
+	if juego_terminado: return true
+	
+	var cartas_jugador = %ManoJugador.get_child_count()
+	var cartas_rival = %ManoRival.get_child_count()
+	
+	if cartas_jugador == 0:
+		mostrar_pantalla_final("¡EL GANADOR ES: JUGADOR 1!")
+		return true
+	elif cartas_rival == 0:
+		mostrar_pantalla_final("EL GANADOR ES: DANILO")
+		return true
+		
+	return false
+
+func mostrar_pantalla_final(mensaje_texto):
+	juego_terminado = true
+	turno_jugador = false
+	actualizar_estado_botones()
+	
+	# 1. Overlay Oscuro
+	var overlay = ColorRect.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.85)
+	overlay.z_index = 4000 # Muy alto para tapar todo
+	add_child(overlay)
+	
+	# 2. CenterContainer (ESTA ES LA CLAVE DEL CENTRADO)
+	var centrador = CenterContainer.new()
+	centrador.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(centrador)
+	
+	# 3. Contenedor Vertical con el contenido
+	var contenedor = VBoxContainer.new()
+	contenedor.add_theme_constant_override("separation", 20)
+	centrador.add_child(contenedor)
+	
+	# 4. Texto
+	var label = Label.new()
+	label.text = mensaje_texto
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 42)
+	contenedor.add_child(label)
+	
+	var espacio = Control.new()
+	espacio.custom_minimum_size.y = 20
+	contenedor.add_child(espacio)
+	
+	# 5. Botones
+	var btn_reset = Button.new()
+	btn_reset.text = "REINICIAR"
+	btn_reset.custom_minimum_size = Vector2(250, 60)
+	btn_reset.mouse_filter = Control.MOUSE_FILTER_STOP
+	btn_reset.pressed.connect(func(): get_tree().reload_current_scene())
+	contenedor.add_child(btn_reset)
+	
+	var btn_salir = Button.new()
+	btn_salir.text = "SALIR"
+	btn_salir.custom_minimum_size = Vector2(250, 60)
+	btn_salir.mouse_filter = Control.MOUSE_FILTER_STOP
+	btn_salir.pressed.connect(func(): get_tree().quit())
+	contenedor.add_child(btn_salir)
+
+# --- FUNCIONES BASE ---
 
 func preparar_pozo_inicial():
 	if mazo.size() > 0: actualizar_pozo_visual(mazo.pop_back())
@@ -157,9 +202,11 @@ func actualizar_pozo_visual(datos):
 		carta_p.custom_minimum_size = Vector2(70, 95)
 		pozo_node.custom_minimum_size = Vector2(70, 95)
 
-# --- IA DEL RIVAL ---
+# --- TURNO DEL RIVAL ---
 
 func iniciar_turno_rival():
+	if juego_terminado: return
+	
 	turno_jugador = false
 	actualizar_estado_botones()
 	
@@ -172,6 +219,7 @@ func iniciar_turno_rival():
 	var pudo_bajar = true
 	while pudo_bajar:
 		pudo_bajar = ia_analizar_y_bajar()
+		if verificar_ganador(): return 
 		if pudo_bajar:
 			await get_tree().create_timer(1.0).timeout 
 	
@@ -184,12 +232,17 @@ func iniciar_turno_rival():
 
 		actualizar_pozo_visual({"valor": carta_descarte.valor, "palo": carta_descarte.palo, "color": carta_descarte.color_mazo})
 		carta_descarte.queue_free()
+		
+		await get_tree().process_frame 
+		if verificar_ganador(): return
 	
 	ya_robo = false
 	turno_jugador = true
 	actualizar_estado_botones()
 
 func ia_analizar_y_bajar():
+	if juego_terminado: return false
+	
 	var cartas = %ManoRival.get_children()
 	var jugada_encontrada = []
 	var jokers = []
@@ -198,7 +251,6 @@ func ia_analizar_y_bajar():
 		if c.valor == 0: jokers.append(c)
 		else: normales.append(c)
 	
-	# PIERNAS
 	var grupos_valor = {}
 	for c in normales:
 		if not c.valor in grupos_valor: grupos_valor[c.valor] = []
@@ -216,7 +268,6 @@ func ia_analizar_y_bajar():
 			bajar_jugada_rival(jugada_encontrada)
 			return true
 	
-	# ESCALERAS
 	var grupos_palo = {}
 	for c in normales:
 		if not c.palo in grupos_palo: grupos_palo[c.palo] = []
@@ -224,6 +275,7 @@ func ia_analizar_y_bajar():
 	for p in grupos_palo:
 		var lista = grupos_palo[p]
 		lista.sort_custom(func(a,b): return a.valor < b.valor)
+		
 		var secuencia_temp = [lista[0]]
 		for i in range(1, lista.size()):
 			if lista[i].valor == lista[i-1].valor + 1:
@@ -240,7 +292,6 @@ func ia_analizar_y_bajar():
 			bajar_jugada_rival(jugada_encontrada)
 			return true
 
-		# JOKER
 		if jokers.size() > 0:
 			var joker_usar = jokers[0]
 			if lista.size() >= 2:
@@ -283,6 +334,7 @@ func bajar_jugada_rival(lista_cartas):
 # --- JUEGO GENERAL ---
 
 func intentar_moje(carta_mano, contenedor):
+	if juego_terminado: return
 	var cartas_en_mesa = contenedor.get_children()
 	var es_escalera = es_jugada_escalera(cartas_en_mesa)
 	var exito = false
@@ -298,7 +350,6 @@ func intentar_moje(carta_mano, contenedor):
 				var min_mesa = naturales[0]; var max_mesa = naturales[-1]
 				if carta_mano.valor > min_mesa and carta_mano.valor < max_mesa:
 					bloqueado = true
-					print("Joker encerrado")
 		if not bloqueado:
 			var lista_prueba = []
 			for c in cartas_en_mesa: lista_prueba.append(c)
@@ -311,7 +362,6 @@ func intentar_moje(carta_mano, contenedor):
 				if c.valor != 0: v_ref = c.valor; palos_en_mesa.append(c.palo)
 			if carta_mano.valor == v_ref:
 				if carta_mano.palo in palos_en_mesa: exito = true
-				else: print("Solo mojar palos existentes")
 
 	if exito: ejecutar_movimiento_moje(carta_mano, contenedor)
 
@@ -328,6 +378,8 @@ func ejecutar_movimiento_moje(carta_mano, contenedor):
 	if not carta_mano.carta_seleccionada.is_connected(_on_jugada_mesa_clicked_desde_carta):
 		carta_mano.carta_seleccionada.connect(_on_jugada_mesa_clicked_desde_carta)
 	cartas_seleccionadas.clear(); ya_robo = true; actualizar_estado_botones()
+	
+	verificar_ganador()
 
 func es_jugada_valida(lista):
 	if lista.size() < 3: return false
@@ -414,7 +466,7 @@ func crear_carta_en_contenedor(datos, contenedor, oculta = false):
 		nueva_carta.scale = Vector2(0.6, 0.6)
 
 func _on_carta_tocada_en_mano(carta_objeto):
-	if ya_robo and turno_jugador: 
+	if ya_robo and turno_jugador and not juego_terminado: 
 		carta_objeto.alternar_seleccion() 
 		if carta_objeto in cartas_seleccionadas:
 			cartas_seleccionadas.erase(carta_objeto)
@@ -425,22 +477,27 @@ func _on_carta_tocada_en_mano(carta_objeto):
 		actualizar_estado_botones()
 
 func _on_boton_mazo_pressed():
-	if turno_jugador and not ya_robo and mazo.size() > 0:
+	if turno_jugador and not ya_robo and mazo.size() > 0 and not juego_terminado:
 		crear_carta_en_contenedor(mazo.pop_back(), %ManoJugador, false)
 		ya_robo = true; actualizar_estado_botones()
 
 func _on_boton_accion_pressed():
-	if not turno_jugador: return
+	if not turno_jugador or juego_terminado: return
 	if cartas_seleccionadas.size() == 1:
 		var c = cartas_seleccionadas[0]
 		actualizar_pozo_visual({"valor": c.valor, "palo": c.palo, "color": c.color_mazo})
-		c.queue_free(); cartas_seleccionadas.clear(); iniciar_turno_rival()
+		c.queue_free(); cartas_seleccionadas.clear()
+		
+		await get_tree().process_frame 
+		if verificar_ganador(): return
+		
+		iniciar_turno_rival()
 	elif cartas_seleccionadas.size() >= 3:
 		if es_jugada_valida(cartas_seleccionadas):
 			var copias = cartas_seleccionadas.duplicate()
-			cartas_seleccionadas.clear()
-			actualizar_estado_botones()
+			cartas_seleccionadas.clear(); actualizar_estado_botones()
 			bajar_jugada_distribuida(copias)
+			verificar_ganador()
 
 func bajar_jugada_distribuida(lista):
 	var containers = [%Jugadas_Arriba, %Jugadas_Izquierda, %Jugadas_Derecha]
@@ -460,18 +517,24 @@ func bajar_jugada_distribuida(lista):
 		c.seleccionada = false; c.actualizar_visual(); c.scale = Vector2(0.6, 0.6); c.position.y = 0
 		if c.carta_seleccionada.is_connected(_on_carta_tocada_en_mano): c.carta_seleccionada.disconnect(_on_carta_tocada_en_mano)
 		c.carta_seleccionada.connect(_on_jugada_mesa_clicked_desde_carta)
+	
 	cartas_seleccionadas.clear(); actualizar_estado_botones()
 
 func _on_jugada_mesa_clicked_desde_carta(carta_en_mesa):
-	if turno_jugador and ya_robo and cartas_seleccionadas.size() == 1: 
+	if turno_jugador and ya_robo and cartas_seleccionadas.size() == 1 and not juego_terminado: 
 		intentar_moje(cartas_seleccionadas[0], carta_en_mesa.get_parent())
 
 func _on_jugada_mesa_clicked(event, contenedor_jugada):
 	if event is InputEventMouseButton and event.pressed:
-		if turno_jugador and ya_robo and cartas_seleccionadas.size() == 1: 
+		if turno_jugador and ya_robo and cartas_seleccionadas.size() == 1 and not juego_terminado: 
 			intentar_moje(cartas_seleccionadas[0], contenedor_jugada)
 
 func actualizar_estado_botones():
+	if juego_terminado:
+		%BotonMazo.disabled = true
+		%BotonAccion.disabled = true
+		return
+
 	%BotonMazo.disabled = (ya_robo or not turno_jugador)
 	var cant = cartas_seleccionadas.size()
 	if not turno_jugador:
