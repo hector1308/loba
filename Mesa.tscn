@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=3 uid="uid://i4kn6aguwj74"]
 
-[ext_resource type="Script" path="res://Mesa.gd" id="1_kstou"]
+[ext_resource type="Script" uid="uid://c7nrsa2ljujuw" path="res://Mesa.gd" id="1_kstou"]
 
 [sub_resource type="Gradient" id="Gradient_l1tlu"]
 offsets = PackedFloat32Array(0.113043, 0.321739, 0.556522, 0.956522)
@@ -66,6 +66,28 @@ alignment = 1
 [node name="LadoRival" type="Control" parent="ContenedorPrincipal"]
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="JugadasRival_Izquierda" type="HBoxContainer" parent="ContenedorPrincipal/LadoRival"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_bottom = 212.0
+size_flags_horizontal = 2
+
+[node name="JugadasRival_Arriba" type="HBoxContainer" parent="ContenedorPrincipal/LadoRival"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 385.0
+offset_right = 385.0
+offset_bottom = 212.0
+size_flags_horizontal = 2
+
+[node name="JugadasRival_Derecha" type="HBoxContainer" parent="ContenedorPrincipal/LadoRival"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 770.0
+offset_right = 770.0
+offset_bottom = 212.0
+size_flags_horizontal = 2
 
 [node name="ZonaCentral" type="HBoxContainer" parent="ContenedorPrincipal"]
 unique_name_in_owner = true
