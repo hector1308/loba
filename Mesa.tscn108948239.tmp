@@ -1,0 +1,165 @@
+[gd_scene load_steps=6 format=3 uid="uid://i4kn6aguwj74"]
+
+[ext_resource type="Script" uid="uid://c7nrsa2ljujuw" path="res://Mesa.gd" id="1_kstou"]
+
+[sub_resource type="Gradient" id="Gradient_l1tlu"]
+offsets = PackedFloat32Array(0.113043, 0.321739, 0.556522, 0.956522)
+colors = PackedColorArray(0, 0.321569, 0.976471, 1, 0, 0.321569, 0.976471, 1, 0.00436267, 0.210075, 0.87068, 1, 0.00102466, 0, 0.678995, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_uiij0"]
+gradient = SubResource("Gradient_l1tlu")
+fill = 1
+fill_from = Vector2(0.490798, 0.493865)
+fill_to = Vector2(0.895706, 0.248466)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_70wmu"]
+bg_color = Color(0, 0.338487, 0.397084, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.609146, 0.771665, 0.374566, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jrvug"]
+bg_color = Color(0.64081, 0.548133, 0.786566, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.410843, 0.903074, 0.492675, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="Mesa" type="CanvasLayer"]
+script = ExtResource("1_kstou")
+
+[node name="Fondo" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = SubResource("GradientTexture2D_uiij0")
+
+[node name="ContenedorPrincipal" type="VBoxContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="ManoRival" type="HBoxContainer" parent="ContenedorPrincipal"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = -40
+alignment = 1
+
+[node name="LadoRival" type="Control" parent="ContenedorPrincipal"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="JugadasRival_Izquierda" type="HBoxContainer" parent="ContenedorPrincipal/LadoRival"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_bottom = 212.0
+size_flags_horizontal = 2
+
+[node name="JugadasRival_Arriba" type="HBoxContainer" parent="ContenedorPrincipal/LadoRival"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 385.0
+offset_right = 385.0
+offset_bottom = 212.0
+size_flags_horizontal = 2
+
+[node name="JugadasRival_Derecha" type="HBoxContainer" parent="ContenedorPrincipal/LadoRival"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 770.0
+offset_right = 770.0
+offset_bottom = 212.0
+size_flags_horizontal = 2
+
+[node name="ZonaCentral" type="HBoxContainer" parent="ContenedorPrincipal"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="BotonMazo" type="Button" parent="ContenedorPrincipal/ZonaCentral"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 50)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleBoxFlat_70wmu")
+text = "Robar"
+
+[node name="Pozo" type="MarginContainer" parent="ContenedorPrincipal/ZonaCentral"]
+custom_minimum_size = Vector2(100, 140)
+layout_mode = 2
+
+[node name="BotonAccion" type="Button" parent="ContenedorPrincipal/ZonaCentral"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleBoxFlat_jrvug")
+text = "Accion"
+
+[node name="LadoJugador" type="Control" parent="ContenedorPrincipal"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Jugadas_Derecha" type="HBoxContainer" parent="ContenedorPrincipal/LadoJugador"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="Jugadas_Arriba" type="HBoxContainer" parent="ContenedorPrincipal/LadoJugador"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = -22.0
+offset_bottom = 98.0
+grow_horizontal = 2
+alignment = 1
+
+[node name="Jugadas_Izquierda" type="HBoxContainer" parent="ContenedorPrincipal/LadoJugador"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+grow_vertical = 2
+
+[node name="ManoJugador" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 10
+alignment = 1
+
+[connection signal="pressed" from="ContenedorPrincipal/ZonaCentral/BotonAccion" to="." method="_on_boton_accion_pressed"]
