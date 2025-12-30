@@ -2,12 +2,10 @@ extends CanvasLayer
 
 @onready var ESCENA_CARTA = preload("res://Carta.tscn")
 
-# REFERENCIAS UI
 @onready var zona_rival_arriba = %JugadasRival_Arriba
 @onready var zona_rival_izq = %JugadasRival_Izquierda
 @onready var zona_rival_der = %JugadasRival_Derecha
 
-# VARIABLES DE JUEGO
 var mazo = []
 var ya_robo = false
 var cartas_seleccionadas = []
@@ -18,30 +16,101 @@ var datos_carta_pozo_actual = null
 
 func _ready():
 	randomize()
-	if not has_node("%ManoJugador"): return
 	
-	# Bloqueo inicial
+	if not has_node("%ManoJugador"):
+		return
+
 	%BotonMazo.disabled = true
 	%BotonAccion.disabled = true
 	
 	configurar_interfaz_visual()
+	
+	# === ASIGNACIÓN DE NOMBRES EN LA MESA ===
+	if has_node("%EtiquetaNombre"):
+		%EtiquetaNombre.text = Global.nombre_jugador
+	
+	if has_node("%EtiquetaRival"):
+		%EtiquetaRival.text = "Maestro Hector"
 	
 	if not %BotonMazo.pressed.is_connected(_on_boton_mazo_pressed):
 		%BotonMazo.pressed.connect(_on_boton_mazo_pressed)
 	if not %BotonAccion.pressed.is_connected(_on_boton_accion_pressed):
 		%BotonAccion.pressed.connect(_on_boton_accion_pressed)
 	
+	activar_zonas_de_arrastre()
 	iniciar_secuencia_juego()
 
-# ================================================================
-# 1. SECUENCIA DE INICIO Y ANIMACIONES
-# ================================================================
+func activar_zonas_de_arrastre():
+	var pozo_node = %ZonaCentral.find_child("Pozo", true, false)
+	if pozo_node:
+		hacer_nodo_receptor_de_drop(pozo_node, "pozo")
+	
+	hacer_nodo_receptor_de_drop(%ManoJugador, "mano")
+	
+	if zona_rival_arriba:
+		hacer_nodo_receptor_de_drop(zona_rival_arriba, "zona_rival")
+	if zona_rival_izq:
+		hacer_nodo_receptor_de_drop(zona_rival_izq, "zona_rival")
+	if zona_rival_der:
+		hacer_nodo_receptor_de_drop(zona_rival_der, "zona_rival")
+
+func hacer_nodo_receptor_de_drop(nodo, tipo_zona):
+	var script_drop = GDScript.new()
+	script_drop.source_code = """
+extends Container
+signal data_dropped(data)
+
+func _can_drop_data(_pos, data):
+	var soy = "%s"
+	if soy == "mano" and data.has("origen") and data["origen"] == "mazo":
+		return true
+	if soy == "pozo" and data.has("origen") and data["origen"] == "mano":
+		return true
+	if (soy == "jugada" or soy == "zona_rival") and data.has("origen") and data["origen"] == "mano":
+		return true
+	return false
+
+func _drop_data(_pos, data):
+	data_dropped.emit(data)
+""" % tipo_zona
+	
+	script_drop.reload()
+	nodo.set_script(script_drop)
+	
+	if not nodo.data_dropped.is_connected(_on_zona_data_dropped.bind(nodo)):
+		nodo.data_dropped.connect(_on_zona_data_dropped.bind(nodo))
+
+func _on_zona_data_dropped(data, receptor):
+	if juego_terminado or not turno_jugador:
+		return
+	
+	if data["origen"] == "mazo" and receptor == %ManoJugador:
+		if not ya_robo:
+			_on_boton_mazo_pressed()
+	
+	elif data["origen"] == "mano" and receptor.name == "Pozo":
+		var carta = data["carta"]
+		if cartas_seleccionadas.size() != 1 or cartas_seleccionadas[0] != carta:
+			for c in cartas_seleccionadas:
+				c.alternar_seleccion()
+			cartas_seleccionadas.clear()
+			carta.alternar_seleccion()
+			cartas_seleccionadas.append(carta)
+			actualizar_estado_botones()
+		_on_boton_accion_pressed()
+	
+	elif data["origen"] == "mano":
+		var es_jugada = receptor.name.begins_with("Jugadas") or receptor.get_parent().name.begins_with("Jugadas") or receptor.name.begins_with("JugadasRival") or receptor.get_parent().name.begins_with("JugadasRival")
+		if es_jugada:
+			var carta = data["carta"]
+			cartas_seleccionadas.clear()
+			cartas_seleccionadas.append(carta)
+			actualizar_estado_botones()
+			intentar_moje(carta, receptor)
 
 func iniciar_secuencia_juego():
 	generar_mazo_loba()
 	mazo.shuffle()
-	
-	# No mostramos el mazo aún, la animación lo hará aparecer
 	
 	await animar_mezcla()
 	await animar_reparto()
@@ -51,19 +120,19 @@ func iniciar_secuencia_juego():
 	actualizar_estado_botones()
 
 func animar_mezcla():
-	# 1. Ocultar mazo estático
 	var mazo_vis = %ZonaCentral.find_child("MazoVisual", true, false)
 	if mazo_vis:
-		for h in mazo_vis.get_children(): h.queue_free()
+		for h in mazo_vis.get_children():
+			h.queue_free()
 	
 	var centro = get_viewport().get_visible_rect().size / 2
 	var cartas_temp = []
 	
-	# 2. Crear cartas voladoras (colores mezclados)
-	for i in range(5):
+	for i in range(4):
 		var c = TextureRect.new()
 		var color_dorso = "blue"
-		if randi() % 2 == 0: color_dorso = "red"
+		if randi() % 2 == 0:
+			color_dorso = "red"
 		
 		c.texture = load("res://cards/back_" + color_dorso + ".png") 
 		c.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -74,7 +143,6 @@ func animar_mezcla():
 		add_child(c)
 		cartas_temp.append(c)
 	
-	# 3. Animar agitación
 	var tiempo_inicio = Time.get_ticks_msec()
 	while Time.get_ticks_msec() - tiempo_inicio < 3000:
 		var tween = create_tween().set_parallel(true)
@@ -87,7 +155,6 @@ func animar_mezcla():
 			tween.tween_property(c, "rotation_degrees", rot, 0.2)
 		await tween.finished
 	
-	# 4. Regresar al origen
 	var pos_mazo = mazo_vis.global_position if mazo_vis else Vector2(100, 300)
 	var tween_final = create_tween().set_parallel(true)
 	for c in cartas_temp:
@@ -95,7 +162,8 @@ func animar_mezcla():
 		tween_final.tween_property(c, "rotation", 0, 0.4)
 	await tween_final.finished
 	
-	for c in cartas_temp: c.queue_free()
+	for c in cartas_temp:
+		c.queue_free()
 	actualizar_mazo_visual()
 
 func animar_reparto():
@@ -103,15 +171,12 @@ func animar_reparto():
 	var origen = mazo_vis.global_position if mazo_vis else get_viewport().get_visible_rect().size / 2
 	
 	for i in range(9):
-		# JUGADOR
 		if mazo.size() > 0:
 			var datos = mazo.pop_back()
-			# Reparto inicial: Al centro de la mano
 			var destino_jugador = %ManoJugador.global_position + Vector2(%ManoJugador.size.x / 2, 0)
 			await animar_carta_volando(origen, destino_jugador, false, datos.color)
 			crear_carta_en_contenedor(datos, %ManoJugador, false)
 		
-		# RIVAL
 		if mazo.size() > 0:
 			var datos_r = mazo.pop_back()
 			var pos_rival = %ManoRival.global_position + Vector2(%ManoRival.size.x / 2, 0) if has_node("%ManoRival") else Vector2(500, 50)
@@ -139,7 +204,8 @@ func animar_carta_volando(desde_pos, hasta_pos, es_rival, color_dorso = "blue"):
 	voladora.size = Vector2(70, 95)
 	voladora.position = desde_pos
 	voladora.z_index = 200 
-	if es_rival: voladora.scale = Vector2(0.6, 0.6)
+	if es_rival:
+		voladora.scale = Vector2(0.6, 0.6)
 	add_child(voladora)
 	
 	var tween = create_tween()
@@ -147,12 +213,9 @@ func animar_carta_volando(desde_pos, hasta_pos, es_rival, color_dorso = "blue"):
 	await tween.finished
 	voladora.queue_free()
 
-# ================================================================
-# 2. LOGICA CORE (DEBE ESTAR ANTES DE LOS INPUTS)
-# ================================================================
-
 func verificar_ganador():
-	if juego_terminado: return true
+	if juego_terminado:
+		return true
 	var cartas_jugador = %ManoJugador.get_child_count()
 	var cartas_rival = %ManoRival.get_child_count()
 	
@@ -160,7 +223,8 @@ func verificar_ganador():
 		mostrar_pantalla_final("¡GANASTE LA PARTIDA!")
 		return true
 	elif cartas_rival == 0:
-		mostrar_pantalla_final("GANÓ DANILO")
+		# === CAMBIO DE NOMBRE DEL RIVAL AQUÍ ===
+		mostrar_pantalla_final("GANÓ MAESTRO HECTOR")
 		return true
 	return false
 
@@ -202,7 +266,8 @@ func mostrar_pantalla_final(mensaje):
 	vbox.add_child(btn_salir)
 
 func iniciar_turno_rival():
-	if juego_terminado: return
+	if juego_terminado:
+		return
 	
 	turno_jugador = false
 	actualizar_estado_botones()
@@ -217,7 +282,8 @@ func iniciar_turno_rival():
 	var pudo_bajar = true
 	while pudo_bajar:
 		pudo_bajar = ia_analizar_y_bajar()
-		if verificar_ganador(): return
+		if verificar_ganador():
+			return
 		if pudo_bajar:
 			await get_tree().create_timer(1.0).timeout 
 	
@@ -232,25 +298,29 @@ func iniciar_turno_rival():
 		carta_descarte.queue_free()
 		
 		await get_tree().process_frame
-		if verificar_ganador(): return
+		if verificar_ganador():
+			return
 	
 	ya_robo = false
 	turno_jugador = true
 	actualizar_estado_botones()
 
 func ia_analizar_y_bajar():
-	if juego_terminado: return false
+	if juego_terminado:
+		return false
 	var cartas = %ManoRival.get_children()
 	var jokers = []
 	var normales = []
 	for c in cartas:
-		if c.valor == 0: jokers.append(c)
-		else: normales.append(c)
+		if c.valor == 0:
+			jokers.append(c)
+		else:
+			normales.append(c)
 	
-	# Logica Piernas
 	var grupos_valor = {}
 	for c in normales:
-		if not c.valor in grupos_valor: grupos_valor[c.valor] = []
+		if not c.valor in grupos_valor:
+			grupos_valor[c.valor] = []
 		grupos_valor[c.valor].append(c)
 	for val in grupos_valor:
 		var lista = grupos_valor[val]
@@ -264,18 +334,23 @@ func ia_analizar_y_bajar():
 			bajar_jugada_rival(candidatos)
 			return true
 	
-	# Logica Escaleras
 	var grupos_palo = {}
 	for c in normales:
-		if not c.palo in grupos_palo: grupos_palo[c.palo] = []
+		if not c.palo in grupos_palo:
+			grupos_palo[c.palo] = []
 		grupos_palo[c.palo].append(c)
 	
 	for p in grupos_palo:
 		var lista = grupos_palo[p]
 		lista.sort_custom(func(a,b): return a.valor < b.valor)
 		
-		var tiene_Q = false; var tiene_K = false; var tiene_A = false
-		var carta_Q; var carta_K; var carta_A
+		var tiene_Q = false
+		var tiene_K = false
+		var tiene_A = false
+		var carta_Q
+		var carta_K
+		var carta_A
+		
 		for c in lista:
 			if c.valor == 12: tiene_Q = true; carta_Q = c
 			if c.valor == 13: tiene_K = true; carta_K = c
@@ -293,7 +368,8 @@ func ia_analizar_y_bajar():
 		for i in range(1, lista.size()):
 			if lista[i].valor == lista[i-1].valor + 1:
 				secuencia_temp.append(lista[i])
-			elif lista[i].valor == lista[i-1].valor: pass
+			elif lista[i].valor == lista[i-1].valor:
+				pass
 			else:
 				if secuencia_temp.size() >= 3:
 					bajar_jugada_rival(secuencia_temp)
@@ -322,7 +398,7 @@ func bajar_jugada_rival(lista_cartas):
 	
 	var grupo = HBoxContainer.new()
 	grupo.alignment = BoxContainer.ALIGNMENT_CENTER
-	grupo.mouse_filter = Control.MOUSE_FILTER_STOP 
+	grupo.mouse_filter = Control.MOUSE_FILTER_PASS
 	grupo.add_theme_constant_override("separation", 2)
 	grupo.custom_minimum_size = Vector2(100, 95) 
 	grupo.z_index = 20
@@ -330,27 +406,34 @@ func bajar_jugada_rival(lista_cartas):
 	destino.add_child(grupo)
 	grupo.gui_input.connect(_on_jugada_mesa_clicked.bind(grupo))
 	
+	hacer_nodo_receptor_de_drop(grupo, "jugada")
+	
 	for c in ordenar_con_joker(lista_cartas):
-		if c.get_parent(): c.get_parent().remove_child(c)
+		if c.get_parent():
+			c.get_parent().remove_child(c)
 		grupo.add_child(c)
 		c.boca_abajo = false 
 		c.seleccionada = false
 		c.actualizar_visual()
-		c.scale = Vector2(0.6, 0.6); c.position.y = 0
+		c.scale = Vector2(0.6, 0.6)
+		c.position.y = 0
+		c.mouse_filter = Control.MOUSE_FILTER_PASS
 		if c.carta_seleccionada.is_connected(_on_carta_tocada_en_mano):
 			c.carta_seleccionada.disconnect(_on_carta_tocada_en_mano)
 		if not c.carta_seleccionada.is_connected(_on_jugada_mesa_clicked_desde_carta):
 			c.carta_seleccionada.connect(_on_jugada_mesa_clicked_desde_carta)
 
 func es_joker_as_alto(lista):
-	var tiene_Q = false; var tiene_K = false
+	var tiene_Q = false
+	var tiene_K = false
 	for c in lista:
 		if c.valor == 12: tiene_Q = true
 		if c.valor == 13: tiene_K = true
 	return tiene_Q and tiene_K
 
 func intentar_moje(carta_mano, contenedor):
-	if juego_terminado: return
+	if juego_terminado:
+		return
 	var cartas_en_mesa = contenedor.get_children()
 	var es_escalera = es_jugada_escalera(cartas_en_mesa)
 	var exito = false
@@ -360,60 +443,328 @@ func intentar_moje(carta_mano, contenedor):
 		if carta_mano.valor != 0: 
 			var naturales = []
 			for c in cartas_en_mesa:
-				if c.valor != 0: naturales.append(c.valor)
+				if c.valor != 0:
+					naturales.append(c.valor)
 			if naturales.size() >= 2:
 				naturales.sort()
-				var min_mesa = naturales[0]; var max_mesa = naturales[-1]
-				
+				var min_mesa = naturales[0]
+				var max_mesa = naturales[-1]
 				if 12 in naturales and 13 in naturales and 1 in naturales:
 					max_mesa = 14 
 				elif 12 in naturales and 13 in naturales:
 					if carta_mano.valor == 1: 
-						exito = true; bloqueado = false
+						exito = true
+						bloqueado = false
 				
 				if carta_mano.valor > min_mesa and carta_mano.valor < max_mesa:
 					bloqueado = true
 					print("Joker encerrado")
-		
 		var ultima_carta = cartas_en_mesa[-1]
 		if ultima_carta.valor == 0 and es_joker_as_alto(cartas_en_mesa):
 			bloqueado = true
-
 		if not bloqueado:
 			var lista_prueba = []
-			for c in cartas_en_mesa: lista_prueba.append(c)
+			for c in cartas_en_mesa:
+				lista_prueba.append(c)
 			lista_prueba.append(carta_mano)
-			if es_jugada_valida(lista_prueba): exito = true
+			if es_jugada_valida(lista_prueba):
+				exito = true
 	else:
 		if carta_mano.valor != 0: 
-			var v_ref = 0; var palos_en_mesa = []
+			var v_ref = 0
+			var palos_en_mesa = []
 			for c in cartas_en_mesa:
-				if c.valor != 0: v_ref = c.valor; palos_en_mesa.append(c.palo)
+				if c.valor != 0:
+					v_ref = c.valor
+					palos_en_mesa.append(c.palo)
 			if carta_mano.valor == v_ref:
-				if carta_mano.palo in palos_en_mesa: exito = true
-
-	if exito: ejecutar_movimiento_moje(carta_mano, contenedor)
+				if carta_mano.palo in palos_en_mesa:
+					exito = true
+	
+	if exito:
+		ejecutar_movimiento_moje(carta_mano, contenedor)
+	else:
+		carta_mano.deseleccionar()
+		if carta_mano in cartas_seleccionadas:
+			cartas_seleccionadas.erase(carta_mano)
+		actualizar_estado_botones()
 
 func ejecutar_movimiento_moje(carta_mano, contenedor):
-	if carta_mano.get_parent(): carta_mano.get_parent().remove_child(carta_mano)
+	if carta_mano.get_parent():
+		carta_mano.get_parent().remove_child(carta_mano)
 	contenedor.add_child(carta_mano)
 	carta_mano.custom_minimum_size = Vector2(55, 80)
-	
 	var lista_ordenada = ordenar_con_joker(contenedor.get_children())
 	for i in range(lista_ordenada.size()):
 		contenedor.move_child(lista_ordenada[i], i)
-	carta_mano.seleccionada = false; carta_mano.actualizar_visual()
-	carta_mano.scale = Vector2(0.6, 0.6); carta_mano.position.y = 0
+	carta_mano.seleccionada = false
+	carta_mano.actualizar_visual()
+	carta_mano.scale = Vector2(0.6, 0.6)
+	carta_mano.position.y = 0
+	
+	carta_mano.mouse_filter = Control.MOUSE_FILTER_PASS
+	
 	if carta_mano.carta_seleccionada.is_connected(_on_carta_tocada_en_mano):
 		carta_mano.carta_seleccionada.disconnect(_on_carta_tocada_en_mano)
 	if not carta_mano.carta_seleccionada.is_connected(_on_jugada_mesa_clicked_desde_carta):
 		carta_mano.carta_seleccionada.connect(_on_jugada_mesa_clicked_desde_carta)
-	cartas_seleccionadas.clear(); ya_robo = true; actualizar_estado_botones()
+	cartas_seleccionadas.clear()
+	ya_robo = true
+	actualizar_estado_botones()
 	verificar_ganador()
 
-# ================================================================
-# 3. INPUT HANDLERS Y UTILIDADES UI
-# ================================================================
+func es_jugada_valida(lista):
+	if lista.size() < 3:
+		return false
+	var normales = []
+	var jokers = 0
+	for c in lista:
+		if c.valor == 0:
+			jokers += 1
+		else:
+			normales.append(c)
+	if normales.size() == 0:
+		return jokers >= 3
+	
+	var v_ref = normales[0].valor
+	var mismo_valor = true
+	var mismo_palo = true
+	var p_ref = normales[0].palo
+	for c in normales:
+		if c.valor != v_ref:
+			mismo_valor = false
+		if c.palo != p_ref:
+			mismo_palo = false
+	
+	if mismo_valor:
+		if jokers > 0:
+			return false
+		var palos_unicos = []
+		for c in normales:
+			if not c.palo in palos_unicos:
+				palos_unicos.append(c.palo)
+		return palos_unicos.size() >= 3
+	
+	if mismo_palo:
+		var valores_mat = []
+		var tiene_K = false
+		var tiene_Q = false
+		for c in normales:
+			if c.valor == 13: tiene_K = true
+			if c.valor == 12: tiene_Q = true
+		for c in normales:
+			if c.valor == 1 and (tiene_K or tiene_Q):
+				valores_mat.append(14)
+			else:
+				valores_mat.append(c.valor)
+		valores_mat.sort()
+		var huecos = 0
+		for i in range(1, valores_mat.size()):
+			var diff = valores_mat[i] - valores_mat[i-1]
+			if diff == 0:
+				return false
+			huecos += (diff - 1)
+		return jokers >= huecos
+	return false
+
+func es_jugada_escalera(lista):
+	var palos = []
+	for c in lista:
+		if c.valor != 0 and not c.palo in palos:
+			palos.append(c.palo)
+	return palos.size() <= 1
+
+func ordenar_con_joker(lista):
+	var normales = []
+	var jokers = []
+	var tiene_K = false
+	var tiene_Q = false
+	for c in lista:
+		if c.valor == 0:
+			jokers.append(c)
+		else: 
+			normales.append(c)
+			if c.valor == 13: tiene_K = true
+			if c.valor == 12: tiene_Q = true
+	
+	normales.sort_custom(func(a, b): 
+		var val_a = a.valor
+		var val_b = b.valor
+		if val_a == 1 and (tiene_K or tiene_Q): val_a = 14
+		if val_b == 1 and (tiene_K or tiene_Q): val_b = 14
+		return val_a < val_b
+	)
+	
+	if normales.size() > 1 and normales[0].valor == normales[-1].valor:
+		return normales + jokers
+	
+	var resultado = []
+	if normales.size() > 0:
+		var v_min = normales[0].valor
+		if v_min == 1 and (tiene_K or tiene_Q): v_min = 14
+		var v_max = normales[-1].valor
+		if v_max == 1 and (tiene_K or tiene_Q): v_max = 14
+		var puntero = v_min
+		var idx_norm = 0
+		while puntero <= v_max:
+			var val_actual = normales[idx_norm].valor
+			if val_actual == 1 and (tiene_K or tiene_Q): val_actual = 14
+			if idx_norm < normales.size() and val_actual == puntero:
+				resultado.append(normales[idx_norm])
+				idx_norm += 1
+			elif jokers.size() > 0:
+				resultado.append(jokers.pop_back())
+			puntero += 1
+		while jokers.size() > 0:
+			if v_max < 14:
+				resultado.append(jokers.pop_back())
+				v_max += 1
+			elif v_min > 1:
+				resultado.push_front(jokers.pop_back())
+				v_min -= 1
+			else:
+				resultado.append(jokers.pop_back())
+	return resultado
+
+func generar_mazo_loba():
+	mazo.clear()
+	for col in ["blue", "red"]:
+		for p in ["Corazon", "Diamante", "Trebol", "Pica"]:
+			for v in range(1, 14):
+				mazo.append({"valor": v, "palo": p, "color": col})
+		for j in range(2):
+			mazo.append({"valor": 0, "palo": "Joker", "color": col})
+
+func repartir_manos():
+	pass
+
+func crear_carta_en_contenedor(datos, contenedor, oculta = false):
+	var nueva_carta = ESCENA_CARTA.instantiate()
+	contenedor.add_child(nueva_carta)
+	nueva_carta.configurar(datos.valor, datos.palo, datos.color, oculta)
+	if contenedor == %ManoJugador:
+		nueva_carta.mouse_filter = Control.MOUSE_FILTER_STOP
+		nueva_carta.custom_minimum_size = Vector2(70, 95)
+		nueva_carta.carta_seleccionada.connect(_on_carta_tocada_en_mano)
+	else:
+		nueva_carta.custom_minimum_size = Vector2(55, 80)
+		nueva_carta.scale = Vector2(0.6, 0.6)
+
+func _on_carta_tocada_en_mano(carta_objeto):
+	if turno_jugador and not juego_terminado:
+		carta_objeto.alternar_seleccion()
+		if carta_objeto in cartas_seleccionadas:
+			cartas_seleccionadas.erase(carta_objeto)
+			carta_objeto.scale = Vector2(1.0, 1.0)
+			carta_objeto.position.y = 0
+		else:
+			cartas_seleccionadas.append(carta_objeto)
+			carta_objeto.scale = Vector2(1.1, 1.1)
+			carta_objeto.position.y = -25
+		actualizar_estado_botones()
+
+func _on_boton_mazo_pressed():
+	if turno_jugador and not ya_robo and mazo.size() > 0 and not juego_terminado:
+		var mazo_vis = %ZonaCentral.find_child("MazoVisual", true, false)
+		var origen = mazo_vis.global_position if mazo_vis else Vector2(0,0)
+		var destino = %ManoJugador.global_position + Vector2(%ManoJugador.size.x / 2, 0)
+		if %ManoJugador.get_child_count() > 0:
+			var ultima_carta = %ManoJugador.get_children().back()
+			if ultima_carta and ultima_carta is Control:
+				destino = ultima_carta.global_position + Vector2(40, 0)
+		%BotonMazo.disabled = true
+		var datos = mazo.pop_back()
+		await animar_carta_volando(origen, destino, false, datos.color)
+		crear_carta_en_contenedor(datos, %ManoJugador, false)
+		actualizar_mazo_visual()
+		ya_robo = true
+		actualizar_estado_botones()
+
+func _on_boton_accion_pressed():
+	if not turno_jugador or juego_terminado:
+		return
+	if cartas_seleccionadas.size() == 1:
+		var c = cartas_seleccionadas[0]
+		actualizar_pozo_visual({"valor": c.valor, "palo": c.palo, "color": c.color_mazo})
+		c.queue_free()
+		cartas_seleccionadas.clear()
+		await get_tree().process_frame
+		if verificar_ganador():
+			return
+		iniciar_turno_rival()
+	elif cartas_seleccionadas.size() >= 3:
+		if es_jugada_valida(cartas_seleccionadas):
+			var copias = cartas_seleccionadas.duplicate()
+			cartas_seleccionadas.clear()
+			actualizar_estado_botones()
+			bajar_jugada_distribuida(copias)
+			verificar_ganador()
+
+func bajar_jugada_distribuida(lista):
+	var containers = [%Jugadas_Arriba, %Jugadas_Izquierda, %Jugadas_Derecha]
+	var destino = containers[0]
+	for c in containers:
+		if c.get_child_count() < destino.get_child_count():
+			destino = c
+	var grupo = HBoxContainer.new()
+	grupo.alignment = BoxContainer.ALIGNMENT_CENTER
+	grupo.mouse_filter = Control.MOUSE_FILTER_PASS
+	grupo.add_theme_constant_override("separation", 2)
+	grupo.custom_minimum_size = Vector2(100, 95)
+	grupo.z_index = 20
+	destino.add_child(grupo)
+	grupo.gui_input.connect(_on_jugada_mesa_clicked.bind(grupo))
+	
+	hacer_nodo_receptor_de_drop(grupo, "jugada")
+	
+	for c in ordenar_con_joker(lista):
+		if c.get_parent():
+			c.get_parent().remove_child(c)
+		grupo.add_child(c)
+		c.seleccionada = false
+		c.actualizar_visual()
+		c.scale = Vector2(0.6, 0.6)
+		c.custom_minimum_size = Vector2(55, 80)
+		c.position.y = 0
+		c.mouse_filter = Control.MOUSE_FILTER_PASS
+		if c.carta_seleccionada.is_connected(_on_carta_tocada_en_mano):
+			c.carta_seleccionada.disconnect(_on_carta_tocada_en_mano)
+		c.carta_seleccionada.connect(_on_jugada_mesa_clicked_desde_carta)
+	cartas_seleccionadas.clear()
+	actualizar_estado_botones()
+
+func _on_jugada_mesa_clicked_desde_carta(carta_en_mesa):
+	if turno_jugador and ya_robo and cartas_seleccionadas.size() == 1 and not juego_terminado:
+		intentar_moje(cartas_seleccionadas[0], carta_en_mesa.get_parent())
+
+func _on_jugada_mesa_clicked(event, contenedor_jugada):
+	if event is InputEventMouseButton and event.pressed:
+		if turno_jugador and ya_robo and cartas_seleccionadas.size() == 1 and not juego_terminado:
+			intentar_moje(cartas_seleccionadas[0], contenedor_jugada)
+
+func actualizar_estado_botones():
+	if juego_terminado:
+		%BotonMazo.disabled = true
+		%BotonAccion.disabled = true
+		return
+	%BotonMazo.disabled = (ya_robo or not turno_jugador)
+	var cant = cartas_seleccionadas.size()
+	if not turno_jugador:
+		%BotonAccion.text = "ESPERANDO..."
+		%BotonAccion.disabled = true
+	elif not ya_robo:
+		%BotonAccion.text = "ROBÁ"
+		%BotonAccion.disabled = true
+	else:
+		if cant == 1:
+			%BotonAccion.text = "DESCARTAR"
+			%BotonAccion.disabled = false
+		elif cant >= 3:
+			%BotonAccion.text = "BAJAR JUGADA"
+			%BotonAccion.disabled = false
+		else:
+			%BotonAccion.text = "ELEGÍ..."
+			%BotonAccion.disabled = true
 
 func desbloquear_botones():
 	var botones = [%BotonMazo, %BotonAccion]
@@ -433,7 +784,8 @@ func configuring_layout_order(principal):
 	orden_deseado.append(%ManoJugador)
 	for i in range(orden_deseado.size()):
 		var nodo = orden_deseado[i]
-		if nodo.get_parent() == principal: principal.move_child(nodo, i)
+		if nodo.get_parent() == principal:
+			principal.move_child(nodo, i)
 
 func configurar_interfaz_visual():
 	var principal = %ManoJugador.get_parent()
@@ -455,24 +807,25 @@ func configurar_interfaz_visual():
 		lr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		
 		if zona_rival_izq:
-			zona_rival_izq.layout_mode = 1 
-			zona_rival_izq.anchor_left = 0.0; zona_rival_izq.anchor_right = 0.3
-			zona_rival_izq.anchor_top = 0.0; zona_rival_izq.anchor_bottom = 1.0
-			zona_rival_izq.offset_left = 0; zona_rival_izq.offset_right = 0
+			zona_rival_izq.layout_mode = 1
+			zona_rival_izq.anchor_left = 0.0
+			zona_rival_izq.anchor_right = 0.3
+			zona_rival_izq.anchor_bottom = 1.0
+			zona_rival_izq.offset_right = 0
 			if zona_rival_izq is BoxContainer: zona_rival_izq.alignment = BoxContainer.ALIGNMENT_CENTER
-
 		if zona_rival_arriba:
 			zona_rival_arriba.layout_mode = 1
-			zona_rival_arriba.anchor_left = 0.3; zona_rival_arriba.anchor_right = 0.7
-			zona_rival_arriba.anchor_top = 0.0; zona_rival_arriba.anchor_bottom = 1.0
-			zona_rival_arriba.offset_left = 0; zona_rival_arriba.offset_right = 0
+			zona_rival_arriba.anchor_left = 0.3
+			zona_rival_arriba.anchor_right = 0.7
+			zona_rival_arriba.anchor_bottom = 1.0
+			zona_rival_arriba.offset_right = 0
 			if zona_rival_arriba is BoxContainer: zona_rival_arriba.alignment = BoxContainer.ALIGNMENT_CENTER
-
 		if zona_rival_der:
 			zona_rival_der.layout_mode = 1
-			zona_rival_der.anchor_left = 0.7; zona_rival_der.anchor_right = 1.0
-			zona_rival_der.anchor_top = 0.0; zona_rival_der.anchor_bottom = 1.0
-			zona_rival_der.offset_left = 0; zona_rival_der.offset_right = 0
+			zona_rival_der.anchor_left = 0.7
+			zona_rival_der.anchor_right = 1.0
+			zona_rival_der.anchor_bottom = 1.0
+			zona_rival_der.offset_right = 0
 			if zona_rival_der is BoxContainer: zona_rival_der.alignment = BoxContainer.ALIGNMENT_CENTER
 
 	%ZonaCentral.custom_minimum_size.y = 140 
@@ -502,30 +855,31 @@ func configurar_interfaz_visual():
 		if has_node("%Jugadas_Izquierda"):
 			var z = get_node("%Jugadas_Izquierda")
 			z.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			z.layout_mode = 1 
-			z.anchor_left = 0.0; z.anchor_right = 0.3
-			z.anchor_top = 0.0; z.anchor_bottom = 1.0
-			z.offset_left = 0; z.offset_right = 0
+			z.layout_mode = 1
+			z.anchor_left = 0.0
+			z.anchor_right = 0.3
+			z.anchor_bottom = 1.0
+			z.offset_right = 0
 			z.custom_minimum_size = Vector2(100, 100)
 			if z is BoxContainer: z.alignment = BoxContainer.ALIGNMENT_CENTER
-
 		if has_node("%Jugadas_Arriba"):
 			var z = get_node("%Jugadas_Arriba")
 			z.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			z.layout_mode = 1 
-			z.anchor_left = 0.3; z.anchor_right = 0.7
-			z.anchor_top = 0.0; z.anchor_bottom = 1.0
-			z.offset_left = 0; z.offset_right = 0
+			z.layout_mode = 1
+			z.anchor_left = 0.3
+			z.anchor_right = 0.7
+			z.anchor_bottom = 1.0
+			z.offset_right = 0
 			z.custom_minimum_size = Vector2(100, 100)
 			if z is BoxContainer: z.alignment = BoxContainer.ALIGNMENT_CENTER
-
 		if has_node("%Jugadas_Derecha"):
 			var z = get_node("%Jugadas_Derecha")
 			z.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			z.layout_mode = 1 
-			z.anchor_left = 0.7; z.anchor_right = 1.0
-			z.anchor_top = 0.0; z.anchor_bottom = 1.0
-			z.offset_left = 0; z.offset_right = 0
+			z.layout_mode = 1
+			z.anchor_left = 0.7
+			z.anchor_right = 1.0
+			z.anchor_bottom = 1.0
+			z.offset_right = 0
 			z.custom_minimum_size = Vector2(100, 100)
 			if z is BoxContainer: z.alignment = BoxContainer.ALIGNMENT_CENTER
 
@@ -544,26 +898,25 @@ func configurar_interfaz_visual():
 		b.mouse_filter = Control.MOUSE_FILTER_STOP 
 		b.z_index = 100 
 
-func preparar_pozo_inicial():
-	pass 
-
 func actualizar_mazo_visual():
 	var mazo_vis = %ZonaCentral.find_child("MazoVisual", true, false)
-	if not mazo_vis: return
-	for h in mazo_vis.get_children(): h.queue_free()
+	if not mazo_vis:
+		return
+	for h in mazo_vis.get_children():
+		h.queue_free()
 	
 	if mazo.size() > 0:
-		var proxima_carta = mazo.back()
-		var color_reverso = proxima_carta.color 
-		
-		var carta_dorso = ESCENA_CARTA.instantiate()
-		carta_dorso.configurar(0, "", color_reverso, true)
-		carta_dorso.custom_minimum_size = Vector2(70, 95)
-		carta_dorso.scale = Vector2(1.0, 1.0)
-		carta_dorso.mouse_filter = Control.MOUSE_FILTER_STOP
-		carta_dorso.gui_input.connect(_on_mazo_visual_input)
-		carta_dorso.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-		mazo_vis.add_child(carta_dorso)
+		var proxima = mazo.back()
+		var col = proxima.color 
+		var c = ESCENA_CARTA.instantiate()
+		c.configurar(0, "", col, true)
+		c.custom_minimum_size = Vector2(70, 95)
+		c.scale = Vector2(1.0, 1.0)
+		c.mouse_filter = Control.MOUSE_FILTER_STOP
+		if not c.gui_input.is_connected(_on_mazo_visual_input):
+			c.gui_input.connect(_on_mazo_visual_input)
+		c.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+		mazo_vis.add_child(c)
 
 func _on_mazo_visual_input(event):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -575,15 +928,17 @@ func actualizar_pozo_visual(datos):
 	var pozo_node = %ZonaCentral.find_child("Pozo", true, false)
 	if pozo_node:
 		pozo_node.mouse_filter = Control.MOUSE_FILTER_STOP 
-		for h in pozo_node.get_children(): h.queue_free()
-		var carta_p = ESCENA_CARTA.instantiate()
-		pozo_node.add_child(carta_p)
-		carta_p.configurar(datos.valor, datos.palo, datos.color, false)
-		carta_p.scale = Vector2(1.0, 1.0) 
-		carta_p.custom_minimum_size = Vector2(70, 95)
+		for h in pozo_node.get_children():
+			h.queue_free()
+		var c = ESCENA_CARTA.instantiate()
+		pozo_node.add_child(c)
+		c.configurar(datos.valor, datos.palo, datos.color, false)
+		c.scale = Vector2(1.0, 1.0)
+		c.custom_minimum_size = Vector2(70, 95)
 		pozo_node.custom_minimum_size = Vector2(70, 95)
-		if not carta_p.gui_input.is_connected(_on_carta_pozo_input):
-			carta_p.gui_input.connect(_on_carta_pozo_input)
+		c.mouse_filter = Control.MOUSE_FILTER_PASS
+		if not c.gui_input.is_connected(_on_carta_pozo_input):
+			c.gui_input.connect(_on_carta_pozo_input)
 
 func _on_carta_pozo_input(event):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -591,227 +946,28 @@ func _on_carta_pozo_input(event):
 			intentar_robar_pozo()
 
 func intentar_robar_pozo():
-	if datos_carta_pozo_actual == null: return
-	var carta_temp = ESCENA_CARTA.instantiate()
-	carta_temp.configurar(datos_carta_pozo_actual.valor, datos_carta_pozo_actual.palo, datos_carta_pozo_actual.color, false)
-	var lista_candidata = cartas_seleccionadas.duplicate()
-	lista_candidata.append(carta_temp)
-	if es_jugada_valida(lista_candidata):
-		realizar_robo_y_bajada(carta_temp)
+	if datos_carta_pozo_actual == null:
+		return
+	var c = ESCENA_CARTA.instantiate()
+	c.configurar(datos_carta_pozo_actual.valor, datos_carta_pozo_actual.palo, datos_carta_pozo_actual.color, false)
+	var lista = cartas_seleccionadas.duplicate()
+	lista.append(c)
+	if es_jugada_valida(lista):
+		realizar_robo_y_bajada(c)
 	else:
-		print("No puedes robar: La combinación no es válida")
-		carta_temp.queue_free()
+		print("Combinacion invalida para robar pozo")
+		c.queue_free()
 
 func realizar_robo_y_bajada(carta_pozo_obj):
 	var pozo_node = %ZonaCentral.find_child("Pozo", true, false)
 	if pozo_node:
-		for h in pozo_node.get_children(): h.queue_free()
-	var lista_final = cartas_seleccionadas.duplicate()
-	lista_final.append(carta_pozo_obj)
+		for h in pozo_node.get_children():
+			h.queue_free()
+	var lista = cartas_seleccionadas.duplicate()
+	lista.append(carta_pozo_obj)
 	cartas_seleccionadas.clear()
-	ya_robo = true 
+	ya_robo = true
 	actualizar_estado_botones()
-	bajar_jugada_distribuida(lista_final)
+	bajar_jugada_distribuida(lista)
 	datos_carta_pozo_actual = null
 	verificar_ganador()
-
-func es_jugada_valida(lista):
-	if lista.size() < 3: return false
-	var normales = []; var jokers = 0
-	for c in lista:
-		if c.valor == 0: jokers += 1
-		else: normales.append(c)
-	if normales.size() == 0: return jokers >= 3
-	
-	var v_ref = normales[0].valor
-	var mismo_valor = true; var mismo_palo = true; var p_ref = normales[0].palo
-	for c in normales:
-		if c.valor != v_ref: mismo_valor = false
-		if c.palo != p_ref: mismo_palo = false
-	
-	if mismo_valor:
-		if jokers > 0: return false
-		var palos_unicos = []
-		for c in normales:
-			if not c.palo in palos_unicos: palos_unicos.append(c.palo)
-		return palos_unicos.size() >= 3
-	
-	if mismo_palo:
-		var valores_mat = []
-		var tiene_K = false; var tiene_Q = false
-		for c in normales:
-			if c.valor == 13: tiene_K = true
-			if c.valor == 12: tiene_Q = true
-		for c in normales:
-			if c.valor == 1 and (tiene_K or tiene_Q): valores_mat.append(14)
-			else: valores_mat.append(c.valor)
-		valores_mat.sort()
-		var huecos = 0
-		for i in range(1, valores_mat.size()):
-			var diff = valores_mat[i] - valores_mat[i-1]
-			if diff == 0: return false 
-			huecos += (diff - 1)
-		return jokers >= huecos
-	return false
-
-func es_jugada_escalera(lista):
-	var palos = []
-	for c in lista:
-		if c.valor != 0 and not c.palo in palos: palos.append(c.palo)
-	return palos.size() <= 1
-
-func ordenar_con_joker(lista):
-	var normales = []; var jokers = []
-	var tiene_K = false; var tiene_Q = false
-	for c in lista:
-		if c.valor == 0: jokers.append(c)
-		else: 
-			normales.append(c)
-			if c.valor == 13: tiene_K = true
-			if c.valor == 12: tiene_Q = true
-	normales.sort_custom(func(a, b): 
-		var val_a = a.valor; var val_b = b.valor
-		if val_a == 1 and (tiene_K or tiene_Q): val_a = 14
-		if val_b == 1 and (tiene_K or tiene_Q): val_b = 14
-		return val_a < val_b
-	)
-	if normales.size() > 1 and normales[0].valor == normales[-1].valor: return normales + jokers
-	var resultado = []
-	if normales.size() > 0:
-		var v_min = normales[0].valor
-		if v_min == 1 and (tiene_K or tiene_Q): v_min = 14
-		var v_max = normales[-1].valor
-		if v_max == 1 and (tiene_K or tiene_Q): v_max = 14
-		var puntero = v_min; var idx_norm = 0
-		while puntero <= v_max:
-			var val_actual = normales[idx_norm].valor
-			if val_actual == 1 and (tiene_K or tiene_Q): val_actual = 14
-			if idx_norm < normales.size() and val_actual == puntero:
-				resultado.append(normales[idx_norm]); idx_norm += 1
-			elif jokers.size() > 0: resultado.append(jokers.pop_back())
-			puntero += 1
-		while jokers.size() > 0:
-			if v_max < 14: resultado.append(jokers.pop_back()); v_max += 1
-			elif v_min > 1: resultado.push_front(jokers.pop_back()); v_min -= 1
-			else: resultado.append(jokers.pop_back())
-	return resultado
-
-func generar_mazo_loba():
-	mazo.clear() 
-	for col in ["blue", "red"]:
-		for p in ["Corazon", "Diamante", "Trebol", "Pica"]:
-			for v in range(1, 14): mazo.append({"valor": v, "palo": p, "color": col})
-		for j in range(2): mazo.append({"valor": 0, "palo": "Joker", "color": col})
-
-func repartir_manos():
-	pass
-
-func crear_carta_en_contenedor(datos, contenedor, oculta = false):
-	var nueva_carta = ESCENA_CARTA.instantiate()
-	contenedor.add_child(nueva_carta)
-	nueva_carta.configurar(datos.valor, datos.palo, datos.color, oculta)
-	if contenedor == %ManoJugador:
-		nueva_carta.mouse_filter = Control.MOUSE_FILTER_STOP
-		nueva_carta.custom_minimum_size = Vector2(70, 95)
-		nueva_carta.carta_seleccionada.connect(_on_carta_tocada_en_mano)
-	else:
-		nueva_carta.custom_minimum_size = Vector2(55, 80)
-		nueva_carta.scale = Vector2(0.6, 0.6)
-
-func _on_carta_tocada_en_mano(carta_objeto):
-	if turno_jugador and not juego_terminado: 
-		carta_objeto.alternar_seleccion() 
-		if carta_objeto in cartas_seleccionadas:
-			cartas_seleccionadas.erase(carta_objeto)
-			carta_objeto.scale = Vector2(1.0, 1.0); carta_objeto.position.y = 0
-		else:
-			cartas_seleccionadas.append(carta_objeto)
-			carta_objeto.scale = Vector2(1.1, 1.1); carta_objeto.position.y = -25
-		actualizar_estado_botones()
-
-func _on_boton_mazo_pressed():
-	if turno_jugador and not ya_robo and mazo.size() > 0 and not juego_terminado:
-		var mazo_vis = %ZonaCentral.find_child("MazoVisual", true, false)
-		var origen = mazo_vis.global_position if mazo_vis else Vector2(0,0)
-		
-		# Animacion manual va a la derecha
-		var destino = %ManoJugador.global_position + Vector2(%ManoJugador.size.x / 2, 0)
-		if %ManoJugador.get_child_count() > 0:
-			var ultima_carta = %ManoJugador.get_children().back()
-			if ultima_carta and ultima_carta is Control:
-				destino = ultima_carta.global_position + Vector2(40, 0)
-		
-		%BotonMazo.disabled = true 
-		var datos = mazo.pop_back()
-		
-		await animar_carta_volando(origen, destino, false, datos.color)
-		crear_carta_en_contenedor(datos, %ManoJugador, false)
-		
-		actualizar_mazo_visual()
-		ya_robo = true
-		actualizar_estado_botones()
-
-func _on_boton_accion_pressed():
-	if not turno_jugador or juego_terminado: return
-	if cartas_seleccionadas.size() == 1:
-		var c = cartas_seleccionadas[0]
-		actualizar_pozo_visual({"valor": c.valor, "palo": c.palo, "color": c.color_mazo})
-		c.queue_free(); cartas_seleccionadas.clear()
-		await get_tree().process_frame 
-		if verificar_ganador(): return
-		iniciar_turno_rival()
-	elif cartas_seleccionadas.size() >= 3:
-		if es_jugada_valida(cartas_seleccionadas):
-			var copias = cartas_seleccionadas.duplicate()
-			cartas_seleccionadas.clear(); actualizar_estado_botones()
-			bajar_jugada_distribuida(copias)
-			verificar_ganador()
-
-func bajar_jugada_distribuida(lista):
-	var containers = [%Jugadas_Arriba, %Jugadas_Izquierda, %Jugadas_Derecha]
-	var destino = containers[0]
-	for c in containers:
-		if c.get_child_count() < destino.get_child_count(): destino = c
-	var grupo = HBoxContainer.new()
-	grupo.alignment = BoxContainer.ALIGNMENT_CENTER
-	grupo.mouse_filter = Control.MOUSE_FILTER_STOP 
-	grupo.add_theme_constant_override("separation", 2)
-	grupo.custom_minimum_size = Vector2(100, 95)
-	grupo.z_index = 20
-	destino.add_child(grupo)
-	grupo.gui_input.connect(_on_jugada_mesa_clicked.bind(grupo))
-	for c in ordenar_con_joker(lista):
-		if c.get_parent(): c.get_parent().remove_child(c)
-		grupo.add_child(c)
-		c.seleccionada = false; c.actualizar_visual()
-		c.scale = Vector2(0.6, 0.6)
-		c.custom_minimum_size = Vector2(55, 80)
-		c.position.y = 0
-		if c.carta_seleccionada.is_connected(_on_carta_tocada_en_mano): c.carta_seleccionada.disconnect(_on_carta_tocada_en_mano)
-		c.carta_seleccionada.connect(_on_jugada_mesa_clicked_desde_carta)
-	cartas_seleccionadas.clear(); actualizar_estado_botones()
-
-func _on_jugada_mesa_clicked_desde_carta(carta_en_mesa):
-	if turno_jugador and ya_robo and cartas_seleccionadas.size() == 1 and not juego_terminado: 
-		intentar_moje(cartas_seleccionadas[0], carta_en_mesa.get_parent())
-
-func _on_jugada_mesa_clicked(event, contenedor_jugada):
-	if event is InputEventMouseButton and event.pressed:
-		if turno_jugador and ya_robo and cartas_seleccionadas.size() == 1 and not juego_terminado: 
-			intentar_moje(cartas_seleccionadas[0], contenedor_jugada)
-
-func actualizar_estado_botones():
-	if juego_terminado:
-		%BotonMazo.disabled = true
-		%BotonAccion.disabled = true
-		return
-	%BotonMazo.disabled = (ya_robo or not turno_jugador)
-	var cant = cartas_seleccionadas.size()
-	if not turno_jugador:
-		%BotonAccion.text = "ESPERANDO..."; %BotonAccion.disabled = true
-	elif not ya_robo:
-		%BotonAccion.text = "ROBÁ"; %BotonAccion.disabled = true
-	else:
-		if cant == 1: %BotonAccion.text = "DESCARTAR"; %BotonAccion.disabled = false
-		elif cant >= 3: %BotonAccion.text = "BAJAR JUGADA"; %BotonAccion.disabled = false
-		else: %BotonAccion.text = "ELEGÍ..."; %BotonAccion.disabled = true

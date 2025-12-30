@@ -54,29 +54,65 @@ func actualizar_visual():
 func alternar_seleccion():
 	if boca_abajo: return 
 	seleccionada = !seleccionada
-	
+	animar_movimiento_seleccion()
+
+# === NUEVA FUNCIÓN: Forzar deselección con animación de retorno ===
+func deseleccionar():
+	if not seleccionada: return
+	seleccionada = false
+	animar_movimiento_seleccion()
+
+func animar_movimiento_seleccion():
 	var tween = create_tween().set_parallel(true)
-	var img = get_node("Imagen")
-	
 	if seleccionada:
-		# Animación de Salto y Escala
 		tween.tween_property(self, "position:y", -30, 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		tween.tween_property(self, "scale", Vector2(1.1, 1.1), 0.15)
-		
-		# Animación de Temblor (Solo en la imagen para no romper el layout)
-		var shake = create_tween()
-		for i in range(3):
-			shake.tween_property(img, "position:x", 4, 0.03)
-			shake.tween_property(img, "position:x", -4, 0.03)
-		shake.tween_property(img, "position:x", 0, 0.03)
 	else:
-		# Regreso suave
-		tween.tween_property(self, "position:y", 0, 0.15).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
-		tween.tween_property(self, "scale", Vector2(1.0, 1.0), 0.15)
+		# Animación de "rebote" suave al volver a la mano
+		tween.tween_property(self, "position:y", 0, 0.25).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+		tween.tween_property(self, "scale", Vector2(1.0, 1.0), 0.2)
 	
 	actualizar_visual()
+
+# === DETECTAR SI EL ARRASTRE FALLÓ (DROP EN EL VACÍO) ===
+func _notification(what):
+	if what == NOTIFICATION_DRAG_END:
+		# is_drag_successful() es falso si soltaste la carta fuera de una zona válida
+		if not is_drag_successful() and seleccionada:
+			deseleccionar()
+			# Si la mesa tiene esta carta en la lista de seleccionadas, hay que avisarle que la quite
+			# (Esto se maneja mejor desde Mesa.gd, pero visualmente la carta ya baja)
 
 func _gui_input(event):
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			carta_seleccionada.emit(self)
+
+func _get_drag_data(_at_position):
+	if get_parent().name == "MazoVisual":
+		var preview = _crear_preview()
+		set_drag_preview(preview)
+		return { "origen": "mazo" }
+	
+	if not boca_abajo and get_parent().name == "ManoJugador":
+		if not seleccionada:
+			carta_seleccionada.emit(self)
+		var preview = _crear_preview()
+		set_drag_preview(preview)
+		return { "origen": "mano", "carta": self }
+	return null
+
+func _crear_preview():
+	var preview_control = Control.new()
+	preview_control.z_index = 4096 
+	
+	var img = TextureRect.new()
+	img.texture = get_node("Imagen").texture
+	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	img.size = Vector2(70, 95)
+	img.position = Vector2(-35, -47.5)
+	img.modulate.a = 0.9
+	img.rotation_degrees = 5
+	
+	preview_control.add_child(img)
+	return preview_control

@@ -166,4 +166,23 @@ grow_vertical = 0
 theme_override_constants/separation = 10
 alignment = 1
 
+[node name="EtiquetaNombre" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = 1037.0
+offset_top = 557.0
+offset_right = 1077.0
+offset_bottom = 623.0
+theme_override_font_sizes/font_size = 25
+
+[node name="EtiquetaRival" type="Label" parent="."]
+unique_name_in_owner = true
+anchors_preset = -1
+anchor_right = 0.017
+anchor_bottom = 0.027
+offset_left = 66.0
+offset_top = 36.0
+offset_right = 89.416
+offset_bottom = 86.504
+theme_override_font_sizes/font_size = 25
+
 [connection signal="pressed" from="ContenedorPrincipal/ZonaCentral/BotonAccion" to="." method="_on_boton_accion_pressed"]
