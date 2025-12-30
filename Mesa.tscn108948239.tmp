@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=3 uid="uid://i4kn6aguwj74"]
 
-[ext_resource type="Script" path="res://Mesa.gd" id="1_kstou"]
+[ext_resource type="Script" uid="uid://c7nrsa2ljujuw" path="res://Mesa.gd" id="1_kstou"]
 
 [sub_resource type="Gradient" id="Gradient_l1tlu"]
 offsets = PackedFloat32Array(0.113043, 0.321739, 0.556522, 0.956522)
@@ -104,10 +104,6 @@ layout_mode = 2
 size_flags_vertical = 4
 theme_override_styles/normal = SubResource("StyleBoxFlat_70wmu")
 text = "Robar"
-
-[node name="MazoVisual" type="Control" parent="ContenedorPrincipal/ZonaCentral"]
-custom_minimum_size = Vector2(70, 95)
-layout_mode = 2
 
 [node name="Pozo" type="MarginContainer" parent="ContenedorPrincipal/ZonaCentral"]
 custom_minimum_size = Vector2(100, 140)
