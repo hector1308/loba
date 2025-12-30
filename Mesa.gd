@@ -14,7 +14,10 @@ var turno_jugador = true
 var indice_rotacion_rival = 0 
 var juego_terminado = false
 
+<<<<<<< HEAD
 # Variable para guardar la info de la carta que está en el pozo
+=======
+>>>>>>> 5f39e2d403826bb43689ed0b4a775dc584f9bbf0
 var datos_carta_pozo_actual = null 
 
 func _ready():
@@ -86,6 +89,7 @@ func configurar_interfaz_visual():
 		lr.size_flags_stretch_ratio = 1.0
 		lr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		
+<<<<<<< HEAD
 		# Izquierda (0% - 30%)
 		if zona_rival_izq:
 			zona_rival_izq.layout_mode = 1 
@@ -111,10 +115,23 @@ func configurar_interfaz_visual():
 			if zona_rival_der is BoxContainer: zona_rival_der.alignment = BoxContainer.ALIGNMENT_CENTER
 
 	# 2. ZONA CENTRAL
+=======
+		if zona_rival_izq:
+			zona_rival_izq.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			zona_rival_izq.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		if zona_rival_arriba:
+			zona_rival_arriba.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			zona_rival_arriba.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		if zona_rival_der:
+			zona_rival_der.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			zona_rival_der.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+>>>>>>> 5f39e2d403826bb43689ed0b4a775dc584f9bbf0
 	%ZonaCentral.custom_minimum_size.y = 140 
 	%ZonaCentral.alignment = BoxContainer.ALIGNMENT_CENTER
 	%ZonaCentral.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	%ZonaCentral.mouse_filter = Control.MOUSE_FILTER_IGNORE
+<<<<<<< HEAD
 	%ZonaCentral.add_theme_constant_override("separation", 50) # Separación Mazo-Pozo
 	
 	# Aseguramos MazoVisual (Fallback si no lo creaste en el editor)
@@ -126,6 +143,8 @@ func configurar_interfaz_visual():
 		mazo_vis.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		%ZonaCentral.add_child(mazo_vis)
 		%ZonaCentral.move_child(mazo_vis, 0)
+=======
+>>>>>>> 5f39e2d403826bb43689ed0b4a775dc584f9bbf0
 
 	# 3. LADO JUGADOR
 	if has_node("LadoJugador"):
@@ -137,6 +156,7 @@ func configurar_interfaz_visual():
 			lj.add_theme_constant_override("separation", 50)
 		lj.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+<<<<<<< HEAD
 		# Izquierda (0% - 30%)
 		if has_node("%Jugadas_Izquierda"):
 			var z = get_node("%Jugadas_Izquierda")
@@ -147,6 +167,16 @@ func configurar_interfaz_visual():
 			z.offset_left = 0; z.offset_right = 0
 			z.custom_minimum_size = Vector2(100, 100)
 			if z is BoxContainer: z.alignment = BoxContainer.ALIGNMENT_CENTER
+=======
+		for zona in [%Jugadas_Arriba, %Jugadas_Izquierda, %Jugadas_Derecha]:
+			if zona: 
+				zona.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				zona.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				zona.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	if principal.has_node("GranEspaciador"):
+		principal.get_node("GranEspaciador").queue_free()
+>>>>>>> 5f39e2d403826bb43689ed0b4a775dc584f9bbf0
 
 		# Centro (30% - 70%)
 		if has_node("%Jugadas_Arriba"):
@@ -178,6 +208,10 @@ func configurar_interfaz_visual():
 	%ManoJugador.size_flags_vertical = Control.SIZE_SHRINK_END
 	%ManoJugador.alignment = BoxContainer.ALIGNMENT_CENTER
 	%ManoJugador.mouse_filter = Control.MOUSE_FILTER_IGNORE 
+<<<<<<< HEAD
+=======
+	
+>>>>>>> 5f39e2d403826bb43689ed0b4a775dc584f9bbf0
 	%ManoJugador.z_index = 50 
 	
 	var botones = [%BotonMazo, %BotonAccion]
@@ -188,6 +222,7 @@ func configurar_interfaz_visual():
 
 func preparar_pozo_inicial():
 	if mazo.size() > 0: actualizar_pozo_visual(mazo.pop_back())
+<<<<<<< HEAD
 
 # --- LÓGICA VISUAL DEL MAZO (CORREGIDA PARA DETECTAR COLOR) ---
 
@@ -222,6 +257,8 @@ func actualizar_mazo_visual():
 func _on_mazo_visual_input(event):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_on_boton_mazo_pressed()
+=======
+>>>>>>> 5f39e2d403826bb43689ed0b4a775dc584f9bbf0
 
 func actualizar_pozo_visual(datos):
 	datos_carta_pozo_actual = datos 
@@ -290,7 +327,10 @@ func iniciar_turno_rival():
 	await get_tree().create_timer(1.0).timeout
 	if mazo.size() > 0:
 		crear_carta_en_contenedor(mazo.pop_back(), %ManoRival, true)
+<<<<<<< HEAD
 		actualizar_mazo_visual()
+=======
+>>>>>>> 5f39e2d403826bb43689ed0b4a775dc584f9bbf0
 	
 	await get_tree().create_timer(0.8).timeout
 	
