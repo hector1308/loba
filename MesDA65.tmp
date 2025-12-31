@@ -168,12 +168,11 @@ alignment = 1
 
 [node name="EtiquetaNombre" type="Label" parent="."]
 unique_name_in_owner = true
-offset_left = 1130.0
-offset_top = 572.0
-offset_right = 1170.0
-offset_bottom = 638.0
+offset_left = 1037.0
+offset_top = 557.0
+offset_right = 1077.0
+offset_bottom = 623.0
 theme_override_font_sizes/font_size = 25
-horizontal_alignment = 2
 
 [node name="EtiquetaRival" type="Label" parent="."]
 unique_name_in_owner = true
