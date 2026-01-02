@@ -1,6 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://i4kn6aguwj74"]
+[gd_scene load_steps=9 format=3 uid="uid://i4kn6aguwj74"]
 
 [ext_resource type="Script" path="res://Mesa.gd" id="1_kstou"]
+[ext_resource type="AudioStream" uid="uid://chuycxfrcaeay" path="res://repartir.mp3" id="2_3cod5"]
+[ext_resource type="AudioStream" uid="uid://4e6m1k1ivmkw" path="res://carta.mp3" id="3_g76ly"]
+[ext_resource type="AudioStream" uid="uid://cfa84mtfjmgqx" path="res://ganar.mp3" id="4_1162d"]
 
 [sub_resource type="Gradient" id="Gradient_l1tlu"]
 offsets = PackedFloat32Array(0.113043, 0.321739, 0.556522, 0.956522)
@@ -38,6 +41,9 @@ corner_radius_bottom_left = 8
 
 [node name="Mesa" type="CanvasLayer"]
 script = ExtResource("1_kstou")
+audio_repartir = ExtResource("2_3cod5")
+audio_carta = ExtResource("3_g76ly")
+audio_ganar = ExtResource("4_1162d")
 
 [node name="Fondo" type="TextureRect" parent="."]
 anchors_preset = 15

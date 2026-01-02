@@ -14,10 +14,11 @@ var indice_rotacion_rival = 0
 var juego_terminado = false
 var datos_carta_pozo_actual = null
 
-# --- SONIDOS ---
-var sfx_repartir = null
-var sfx_carta = null
-var sfx_ganar = null
+# --- SONIDOS (VARIABLES EXPORTADAS) ---
+@export var audio_repartir: AudioStream
+@export var audio_carta: AudioStream
+@export var audio_ganar: AudioStream
+
 var audio_player = null
 
 func _ready():
@@ -27,11 +28,6 @@ func _ready():
 	# Inicializar audio
 	audio_player = AudioStreamPlayer.new()
 	add_child(audio_player)
-	
-	# Carga segura de sonidos
-	sfx_repartir = cargar_sonido_seguro("res://sounds/repartir.mp3")
-	sfx_carta =    cargar_sonido_seguro("res://sounds/carta.mp3")
-	sfx_ganar =    cargar_sonido_seguro("res://sounds/ganar.mp3")
 	
 	randomize()
 	if not has_node("%ManoJugador"):
@@ -56,11 +52,7 @@ func _ready():
 	activar_zonas_de_arrastre()
 	iniciar_secuencia_juego()
 
-func cargar_sonido_seguro(ruta):
-	if FileAccess.file_exists(ruta):
-		return load(ruta)
-	return null
-
+# Función para reproducir sonidos
 func reproducir_sfx(stream):
 	if stream and audio_player:
 		audio_player.stream = stream
@@ -157,7 +149,7 @@ func _on_zona_data_dropped(data, receptor):
 		actualizar_estado_botones()
 
 	elif origen == "mano" and receptor.name == "Pozo":
-		# CORRECCION DE SEGURIDAD 1: No permitir descartar sin robar
+		# SEGURIDAD: No descartar sin haber robado
 		if not ya_robo:
 			print("AVISO: Debes robar carta antes de descartar.")
 			return
@@ -432,7 +424,7 @@ func animar_reparto():
 	
 	for i in range(9):
 		if mazo.size() > 0:
-			reproducir_sfx(sfx_repartir)
+			reproducir_sfx(audio_repartir)
 			
 			var datos = mazo.pop_back()
 			var destino_jugador = %ManoJugador.global_position + Vector2(%ManoJugador.size.x / 2, 0)
@@ -476,7 +468,7 @@ func animar_carta_volando(desde_pos, hasta_pos, es_rival, color_dorso = "blue"):
 	voladora.queue_free()
 
 func ejecutar_movimiento_moje(carta_mano, contenedor):
-	reproducir_sfx(sfx_carta)
+	reproducir_sfx(audio_carta)
 	
 	if carta_mano.get_parent():
 		carta_mano.get_parent().remove_child(carta_mano)
@@ -602,7 +594,7 @@ func mostrar_pantalla_final(mensaje):
 	turno_jugador = false
 	actualizar_estado_botones()
 	
-	reproducir_sfx(sfx_ganar)
+	reproducir_sfx(audio_ganar)
 	
 	var overlay = ColorRect.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -665,7 +657,7 @@ func iniciar_turno_rival():
 		if carta_descarte.valor == 0 and cartas_rival.size() > 1:
 			carta_descarte = cartas_rival[1]
 
-		reproducir_sfx(sfx_carta)
+		reproducir_sfx(audio_carta)
 		actualizar_pozo_visual({"valor": carta_descarte.valor, "palo": carta_descarte.palo, "color": carta_descarte.color_mazo})
 		carta_descarte.queue_free()
 		
@@ -780,7 +772,7 @@ func bajar_jugada_rival(lista_cartas):
 	
 	hacer_nodo_receptor_de_drop(grupo, "zona_rival")
 	
-	reproducir_sfx(sfx_carta)
+	reproducir_sfx(audio_carta)
 	
 	for c in ordenar_con_joker(lista_cartas):
 		if c.get_parent():
@@ -859,12 +851,12 @@ func _on_boton_accion_pressed():
 	if not turno_jugador or juego_terminado:
 		return
 	if cartas_seleccionadas.size() == 1:
-		# CORRECCION DE SEGURIDAD 2: Bloquear turno INMEDIATAMENTE
+		# SEGURIDAD: Bloqueo inmediato
 		turno_jugador = false 
 		actualizar_estado_botones()
 		
 		var c = cartas_seleccionadas[0]
-		reproducir_sfx(sfx_carta)
+		reproducir_sfx(audio_carta)
 		actualizar_pozo_visual({"valor": c.valor, "palo": c.palo, "color": c.color_mazo})
 		c.queue_free()
 		cartas_seleccionadas.clear()
@@ -898,7 +890,7 @@ func bajar_jugada_distribuida(lista):
 	
 	hacer_nodo_receptor_de_drop(grupo, "jugada")
 	
-	reproducir_sfx(sfx_carta)
+	reproducir_sfx(audio_carta)
 	
 	for c in ordenar_con_joker(lista):
 		if c.get_parent():
