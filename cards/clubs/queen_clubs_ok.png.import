@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://yma7hax8hdbg"
-path="res://.godot/imported/king_hearts_white.png-b0b240237295af6573b4d6246be48174.ctex"
+uid="uid://c86q73m0itrbp"
+path="res://.godot/imported/queen_clubs_ok.png-84bf51e4533f2984df3feb11dc2f4fad.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://cards/hearts/king_hearts_white.png"
-dest_files=["res://.godot/imported/king_hearts_white.png-b0b240237295af6573b4d6246be48174.ctex"]
+source_file="res://cards/clubs/queen_clubs_ok.png"
+dest_files=["res://.godot/imported/queen_clubs_ok.png-84bf51e4533f2984df3feb11dc2f4fad.ctex"]
 
 [params]
 

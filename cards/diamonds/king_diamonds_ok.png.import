@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://5jg1x58v2we4"
-path="res://.godot/imported/queen_clubs_white.png-6936290c363eb3a54e939bc9052c3db3.ctex"
+uid="uid://dswcs747jm8d2"
+path="res://.godot/imported/king_diamonds_ok.png-5dcfd59024302ee1eb93e6182981ff48.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://cards/clubs/queen_clubs_white.png"
-dest_files=["res://.godot/imported/queen_clubs_white.png-6936290c363eb3a54e939bc9052c3db3.ctex"]
+source_file="res://cards/diamonds/king_diamonds_ok.png"
+dest_files=["res://.godot/imported/king_diamonds_ok.png-5dcfd59024302ee1eb93e6182981ff48.ctex"]
 
 [params]
 

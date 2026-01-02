@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bjhvy2835wb17"
-path="res://.godot/imported/king_spades_white.png-a1d228984531a0e197040b53fc579c0d.ctex"
+uid="uid://qepjsn20vy6c"
+path="res://.godot/imported/king_spades_ok.png-c5ab6d09b4fa28f32e4277137374cad2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://cards/spades/king_spades_white.png"
-dest_files=["res://.godot/imported/king_spades_white.png-a1d228984531a0e197040b53fc579c0d.ctex"]
+source_file="res://cards/spades/king_spades_ok.png"
+dest_files=["res://.godot/imported/king_spades_ok.png-c5ab6d09b4fa28f32e4277137374cad2.ctex"]
 
 [params]
 

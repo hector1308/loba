@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b6670ni1ehuoy"
-path="res://.godot/imported/king_clubs_white.png-f7f8c755faff3bdd3e9b0bc3d5cfca83.ctex"
+uid="uid://ccx7klgngq5fc"
+path="res://.godot/imported/queen_spades_ok.png-95364b26d0abd6fe49b32ecbb886b418.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://cards/clubs/king_clubs_white.png"
-dest_files=["res://.godot/imported/king_clubs_white.png-f7f8c755faff3bdd3e9b0bc3d5cfca83.ctex"]
+source_file="res://cards/spades/queen_spades_ok.png"
+dest_files=["res://.godot/imported/queen_spades_ok.png-95364b26d0abd6fe49b32ecbb886b418.ctex"]
 
 [params]
 

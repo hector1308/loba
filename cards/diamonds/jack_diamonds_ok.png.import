@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://xqpp5b1te8sh"
-path="res://.godot/imported/queen_spades_white.png-a38952fa5be4392617234ca09b03803f.ctex"
+uid="uid://31mivygtlydb"
+path="res://.godot/imported/jack_diamonds_ok.png-ba4d45ee58a3a27213b2ee604028532c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://cards/spades/queen_spades_white.png"
-dest_files=["res://.godot/imported/queen_spades_white.png-a38952fa5be4392617234ca09b03803f.ctex"]
+source_file="res://cards/diamonds/jack_diamonds_ok.png"
+dest_files=["res://.godot/imported/jack_diamonds_ok.png-ba4d45ee58a3a27213b2ee604028532c.ctex"]
 
 [params]
 

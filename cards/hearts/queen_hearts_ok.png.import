@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bkki0v5kp27t3"
-path="res://.godot/imported/jack_clubs_white.png-70ad60dca90da29f1386e15cf98ca8aa.ctex"
+uid="uid://hpgwcxk83fg8"
+path="res://.godot/imported/queen_hearts_ok.png-7dd7c9606e9e8028320b09d2a5b0e4ed.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://cards/clubs/jack_clubs_white.png"
-dest_files=["res://.godot/imported/jack_clubs_white.png-70ad60dca90da29f1386e15cf98ca8aa.ctex"]
+source_file="res://cards/hearts/queen_hearts_ok.png"
+dest_files=["res://.godot/imported/queen_hearts_ok.png-7dd7c9606e9e8028320b09d2a5b0e4ed.ctex"]
 
 [params]
 

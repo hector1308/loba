@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cmjg7s2evvevc"
-path="res://.godot/imported/jack_spades_white.png-a7ebc924022faf8ab65a081aab895fa1.ctex"
+uid="uid://bkl1gpax8uhds"
+path="res://.godot/imported/jack_hearts_ok.png-ad5105d48786e79f1f54b51f28c1ad8f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://cards/spades/jack_spades_white.png"
-dest_files=["res://.godot/imported/jack_spades_white.png-a7ebc924022faf8ab65a081aab895fa1.ctex"]
+source_file="res://cards/hearts/jack_hearts_ok.png"
+dest_files=["res://.godot/imported/jack_hearts_ok.png-ad5105d48786e79f1f54b51f28c1ad8f.ctex"]
 
 [params]
 
